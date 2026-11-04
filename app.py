@@ -2,7 +2,6 @@ import csv
 from pathlib import Path
 
 import urllib3
-from dotenv import load_dotenv
 
 urllib3.disable_warnings()
 
@@ -15,10 +14,10 @@ import urllib3
 from services.email_service import NotificadorEmail
 from services.login_logout_sap import LoginLogoutSap
 
+# arquivos_txt = Path("src/*.txt")
 tab18 = Path("./src/TAB18.txt")
 assunto = "Automação: Atualização da Lista de Preços"
 SAP_URL = os.getenv("SAP_URL")
-load_dotenv()
 
 
 def limpar_preco(valor_str: str) -> float | None:
@@ -42,15 +41,16 @@ def limpar_preco(valor_str: str) -> float | None:
 
 def atualizar_tabela_sap(cookies, cod_item, price, table):
     """Atualiza tabela de preços no SAP B1"""
-    resp = requests.post(
-        f"{SAP_URL}/Items('{cod_item}')",
-        json={"ItemPrices": [{"PriceList": table, "Price": price}]},
-        cookies=cookies,
-        verify=False,
-        timeout=15,
-    )
-    if resp.status_code not in [200, 204]:
-        raise Exception(f"Erro ao atualizar {cod_item} no SAP: {resp.text}")
+    try:
+        requests.patch(
+            f"{SAP_URL}/Items('{cod_item}')",
+            json={"ItemPrices": [{"PriceList": table, "Price": price}]},
+            cookies=cookies,
+            verify=False,
+            timeout=8,
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"Erro ao atualizar {cod_item} no SAP: {e}")
 
     print(f"  {cod_item} atualizado no SAP B1 com sucesso!")
 
@@ -80,11 +80,10 @@ with open(tab18, mode="r", encoding="utf-16") as f:
             )
             continue
 
-        # Estrutura pronta para o payload da API
         item_data = {
             "PriceList": table,
             "ItemCode": item_code,
-            "Price": preco_unitario,  # ou preco_bruto se preferir manter 'R$ 28,87'
+            "Price": preco_unitario,
         }
 
         itens_payload.append(item_data)
