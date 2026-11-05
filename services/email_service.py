@@ -1,15 +1,16 @@
-import smtplib
 import os
-# pyrefly: ignore [missing-import]
-from dotenv import load_dotenv
+import smtplib
 from email.message import EmailMessage
 
+from dotenv import load_dotenv
+
 load_dotenv()
+
 
 class NotificadorEmail:
     def __init__(self):
         self.host = os.getenv("EMAIL_HOST")
-        self.port = int(os.getenv("EMAIL_PORT", 587))
+        self.port = int(os.getenv("EMAIL_PORT"))
         self.user = os.getenv("EMAIL_USER")
         self.password = os.getenv("EMAIL_PASS")
 
@@ -44,13 +45,26 @@ class NotificadorEmail:
                     )
                 else:
                     print(f"Aviso: O anexo {caminho} não foi encontrado.")
+        if copias:
+            if isinstance(copias, list):
+                msg["Cc"] = ", ".join(copias)
+            else:
+                msg["Cc"] = copias
 
-        # Envio seguro usando TLS
+        # Envio seguro usando TLS / SSL
         try:
-            with smtplib.SMTP(self.host, self.port) as server:
-                server.starttls()  # Criptografa a conexão
+            if self.port == 465:
+                server_ctx = smtplib.SMTP_SSL(self.host, self.port)
+            else:
+                server_ctx = smtplib.SMTP(self.host, self.port)
+
+            with server_ctx as server:
+                if self.port != 465:
+                    server.starttls()  # Criptografa a conexão
                 server.login(self.user, self.password)
                 server.send_message(msg)
             print(f"E-mail enviado com sucesso para {destinatarios}!")
-        except Exception as e:
+            return True
+        except (smtplib.SMTPException, OSError) as e:
             print(f"Falha ao enviar e-mail: {e}")
+            return False
