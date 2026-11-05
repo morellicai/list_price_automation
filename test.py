@@ -1,53 +1,39 @@
-import csv
-from pathlib import Path
+import time
+from datetime import timedelta
 
-import urllib3
+# 1. Transformar o DataFrame filtrado de volta no formato de dicionário que seu código já usa
+itens_payload = df_filtrado.to_dict("records")
 
-urllib3.disable_warnings()
-tab18 = Path("./src/TAB18.txt")
+# 2. Variáveis de controle para o progresso e cálculo de tempo
+total = len(itens_payload)
+tempo_inicio = time.time()
+atualizados = 0
 
+print(f"\nIniciando atualização de {total} itens via Service Layer...")
 
-def limpar_preco(valor_str: str) -> float | None:
-    """Converte 'R$ 28,87' para float (28.87).
-
-    Retorna None se o valor for inválido (ex: '#N/D', '#VALOR!').
-    """
-    texto_limpo = (
-        valor_str.replace("R$", "")
-        .replace(" ", "")
-        .replace(".", "")
-        .replace(",", ".")
-        .strip()
+# 3. O seu loop original mantido, mas iterando sobre a lista nova e limpa (apenas com diferenças)
+for item in itens_payload:
+    # Chamando a sua função intacta, passando as variáveis soltas
+    atualizar_tabela_sap(
+        cookies,
+        item["ItemCode"],
+        item["Price"],
+        item.get(
+            "PriceList", LISTA_PRECO_ID
+        ),  # Usa a do dict, ou a constante se não houver no TXT
     )
-    try:
-        return float(texto_limpo)
-    except ValueError:
-        return None
 
+    # Atualiza contador
+    atualizados += 1
 
-# Lista para armazenar os itens processados para o payload
-itens_payload = []
-itens_invalidos = []
-with open(tab18, mode="r", encoding="utf-16") as f:
-    # O DictReader utiliza a 1ª linha como chave de cada coluna automaticamente
-    leitor = csv.DictReader(f, delimiter="\t")
-    for linha in leitor:
-        item_code = linha.get("Nº do item", "").strip()
-        preco_bruto = linha.get("Preço unitário", "").strip()
-        if not item_code:
-            continue
-        preco_unitario = limpar_preco(preco_bruto)
-        # Trata itens com erro no Excel (#N/D ou #VALOR!)
-        if preco_unitario is None:
-            itens_invalidos.append(
-                {"ItemCode": item_code, "PrecoOriginal": preco_bruto}
-            )
-            continue
-        # Estrutura pronta para o payload
-        item_data = {
-            "ItemCode": item_code,
-            "Price": preco_unitario,  # ou preco_bruto caso a API espere a string original
-        }
-        itens_payload.append(item_data)
-print(f"Total de itens válidos processados: {len(itens_payload)}")
-print(f"Total de itens com erro de fórmula (#N/D, #VALOR!): {len(itens_invalidos)}")
+    # 4. Lógica do log de progresso a cada 50 itens
+    if atualizados % 50 == 0 or atualizados == total:
+        tempo_decorrido = time.time() - tempo_inicio
+        tempo_medio = tempo_decorrido / atualizados
+        itens_restantes = total - atualizados
+        eta_segundos = itens_restantes * tempo_medio
+
+        eta_formatado = str(timedelta(seconds=int(eta_segundos)))
+        print(f"[{atualizados}/{total}] Atualizados... ETA Restante: {eta_formatado}")
+
+print(f"\nConcluído! {atualizados} itens foram atualizados com sucesso.")
