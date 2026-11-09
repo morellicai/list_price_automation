@@ -3,6 +3,7 @@ def gerar_html_inicio(
     total_itens: int,
     total_real_atualizar: int = 0,
     tempo_esperado: str = "Calculando...",
+    janela_limite: str = "Até 08:00 (Início do expediente)",
 ) -> str:
     """Gera o HTML do e-mail de início no formato compatível com o Word/Outlook."""
     tabelas_str = ", ".join(tabelas) if tabelas else "Nenhuma"
@@ -50,7 +51,7 @@ def gerar_html_inicio(
                         </tr>
                         <tr>
                         <td style="border-bottom: 1px solid #eeeeee; color: #555555; font-size: 13px;"><strong>Janela Limite:</strong></td>
-                        <td style="border-bottom: 1px solid #eeeeee; color: #555555; font-size: 13px;">Até 08:00 (Início do expediente)</td>
+                        <td style="border-bottom: 1px solid #eeeeee; color: #555555; font-size: 13px;">{janela_limite}</td>
                         </tr>
                     </table>
                     <p style="color: #888888; font-size: 12px; margin: 0; text-align: center; border-top: 1px solid #f0f0f0; padding-top: 15px;">

@@ -91,7 +91,9 @@ if arquivos_txt:
 
 lista_tabelas = sorted(set(lista_preco_id))
 
-if itens_payload and hour >= 18:
+eh_fim_de_semana = datetime.now().weekday() >= 5
+
+if itens_payload and (hour >= 18 or eh_fim_de_semana):
     login_logout_SAP = LoginLogoutSap()
     email = NotificadorEmail()
     df_payload = pd.DataFrame(itens_payload)
@@ -131,11 +133,18 @@ if itens_payload and hour >= 18:
             else "0s (itens já atualizados)"
         )
 
+        janela_limite_desc = (
+            "Sem limite (Final de semana - execução contínua)"
+            if datetime.now().weekday() >= 5
+            else "Até 08:00 (Início do expediente comercial)"
+        )
+
         corpo_inicio = gerar_html_inicio(
             tabelas=lista_tabelas,
             total_itens=len(itens_payload),
             total_real_atualizar=total,
             tempo_esperado=tempo_esperado_str,
+            janela_limite=janela_limite_desc,
         )
         email.enviar(
             destinatarios=[
@@ -151,12 +160,13 @@ if itens_payload and hour >= 18:
 
         # 4. Atualização em lote
         for item in itens_atualizar:
-            # Verifica se atingiu o início do horário comercial (08:00)
-            hora_atual = datetime.now().hour
-            if 8 <= hora_atual < 18:
+            # Trava de horário comercial: ativa apenas em dias úteis (segunda a sexta)
+            agora = datetime.now()
+            eh_dia_util = agora.weekday() < 5
+            if eh_dia_util and 8 <= agora.hour < 18:
                 print(
-                    f"\n[HORÁRIO LIMITE] Atingido {hora_atual}h (horário comercial). "
-                    "Pausando a execução para não impactar a operação."
+                    f"\n[HORÁRIO LIMITE] Atingido {agora.hour}h em dia útil. "
+                    "Pausando a execução para não impactar a operação comercial."
                 )
                 interrompido_horario = True
                 break

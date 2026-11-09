@@ -6,13 +6,28 @@ class ItensSap:
         self.cookies = cookies
         self.SAP_URL = sap_url
 
-    def atualizar_tabela_sap(self, cod_item, price, table):
-        """Atualiza tabela de preços no SAP B1"""
+    def atualizar_tabela_sap(self, *args, **kwargs):
+        """Atualiza tabela de preços no SAP B1.
+
+        Suporta tanto atualizar_tabela_sap(cod_item, price, table)
+        quanto atualizar_tabela_sap(cookies, cod_item, price, table).
+        """
+        if len(args) == 4:
+            cookies, cod_item, price, table = args
+        elif len(args) == 3:
+            cod_item, price, table = args
+            cookies = kwargs.get("cookies", self.cookies)
+        else:
+            cod_item = kwargs.get("cod_item")
+            price = kwargs.get("price")
+            table = kwargs.get("table")
+            cookies = kwargs.get("cookies", self.cookies)
+
         try:
             requests.patch(
                 f"{self.SAP_URL}/Items('{cod_item}')",
                 json={"ItemPrices": [{"PriceList": int(table), "Price": price}]},
-                cookies=self.cookies,
+                cookies=cookies,
                 verify=False,
                 timeout=10,
             )
