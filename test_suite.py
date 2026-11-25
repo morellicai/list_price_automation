@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 # Função de sanitização do app.py
-from app import limpar_preco
+from Lista_Precos import limpar_preco
 
 # Importação dos módulos do projeto
 from services.body_email_gen import (

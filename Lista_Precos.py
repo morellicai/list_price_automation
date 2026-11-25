@@ -21,7 +21,7 @@ from services.email_service import NotificadorEmail
 from services.lista_itens import ItensSap
 from services.login_logout_sap import LoginLogoutSap
 
-arquivos_txt = list(Path("src").glob("*.txt"))
+arquivos_txt = list(Path("Listas").glob("*.txt"))
 assunto = "Automação: Atualização da Lista de Preços"
 SAP_URL = os.getenv("SAP_URL")
 hour = datetime.now().hour
@@ -57,6 +57,13 @@ lista_itens_atualizados = {
     "PriceList": set(),
     "Items": [],
 }
+
+destinatarios = [
+    "ti@inconelinox.com.br",
+    "ti01@inconelinox.com.br",
+    "jgnann@inconelinox.com.br",
+    "armando.abdalla@inconelinox.com.br",
+]
 
 if arquivos_txt:
     for arquivo in arquivos_txt:
@@ -147,10 +154,7 @@ if itens_payload and (hour >= 18 or eh_fim_de_semana):
             janela_limite=janela_limite_desc,
         )
         email.enviar(
-            destinatarios=[
-                "ti01@inconelinox.com.br",
-                # "armando.abdalla@inconelinox.com.br",
-            ],
+            destinatarios=destinatarios,
             assunto=assunto + " - Inicio do Processo",
             corpo_html=corpo_inicio,
         )
@@ -163,7 +167,7 @@ if itens_payload and (hour >= 18 or eh_fim_de_semana):
             # Trava de horário comercial: ativa apenas em dias úteis (segunda a sexta)
             agora = datetime.now()
             eh_dia_util = agora.weekday() < 5
-            if eh_dia_util and 8 <= agora.hour < 18:
+            if eh_dia_util and agora.hour > 18 and agora.hour < 8:
                 print(
                     f"\n[HORÁRIO LIMITE] Atingido {agora.hour}h em dia útil. "
                     "Pausando a execução para não impactar a operação comercial."
@@ -225,10 +229,7 @@ if itens_payload and (hour >= 18 or eh_fim_de_semana):
                 tempo_esperado_restante=eta_restante_str,
             )
             email.enviar(
-                destinatarios=[
-                    "ti01@inconelinox.com.br",
-                    # "armando.abdalla@inconelinox.com.br",
-                ],
+                destinatarios=destinatarios,
                 assunto=assunto + " - Pausa: Início do Horário Comercial (08:00)",
                 corpo_html=corpo_interrupcao,
             )
@@ -254,7 +255,7 @@ if itens_payload and (hour >= 18 or eh_fim_de_semana):
         email.enviar(
             destinatarios=[
                 "ti01@inconelinox.com.br",
-                # "armando.abdalla@inconelinox.com.br",
+                "jgnann@gmail.com",
             ],
             assunto=assunto + " - Atenção: Automação Interrompida",
             corpo_html=corpo_interrupcao,
@@ -263,11 +264,15 @@ if itens_payload and (hour >= 18 or eh_fim_de_semana):
     finally:
         if cookies:
             login_logout_SAP.logout_sap(cookies)
-            print("Sessão SAP encerrada com sucesso.")
+            email.enviar(
+                destinatarios=["ti01@inconelinox"],
+                assunto=assunto,
+                corpo_html="logout realizado do sistema",
+            )
 
         if (
             not interrompido_horario
-            and total > 0
+            and total <= 0
             and len(lista_itens_atualizados["Items"]) == total
         ):
             print(
@@ -284,10 +289,7 @@ if itens_payload and (hour >= 18 or eh_fim_de_semana):
                 tempo_total=tempo_total,
             )
             email.enviar(
-                destinatarios=[
-                    "ti01@inconelinox.com.br",
-                    # "armando.abdalla@inconelinox.com.br",
-                ],
+                destinatarios=destinatarios,
                 assunto=assunto + " - Concluído com Sucesso",
                 corpo_html=corpo_conclusao,
             )
@@ -301,6 +303,17 @@ else:
     if hour < 18:
         print(
             f"Hora atual: {hour}h. A execução só é permitida a partir das 18h. Nenhum arquivo de entrada processado."
+        )
+        email = NotificadorEmail()
+        corpo_interrupcao = gerar_html_interrupcao(
+            tabelas_afetadas=[],
+            total_atualizados=0,
+            motivo="Execução fora do horário permitido (18h às 08h) ou Lista de Preços vazia. Nenhum item processado.",
+        )
+        email.enviar(
+            destinatarios=["ti01@inconelinox.com.br", "jgnann@gmail.com"],
+            assunto=assunto + " - Atenção: Execução Fora do Horário",
+            corpo_html=corpo_interrupcao,
         )
     else:
         print("Nenhum arquivo de entrada encontrado. Nenhum item processado.")
